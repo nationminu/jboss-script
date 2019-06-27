@@ -8,9 +8,8 @@ export DOMAIN_BASE={{ DOMAIN_BASE }}
 export SERVER_NAME={{ SERVER_NAME }}
 export JBOSS_LOG_DIR={{ LOG_HOME }}/${SERVER_NAME}
  
-##### Configration File #####
-#export CONFIG_FILE=standalone-ha.xml
-export CONFIG_FILE=standalone.xml
+##### Configration File ##### 
+export CONFIG_FILE={{ CONFIGURATION }}
 
 export HOST_NAME=`/bin/hostname`
 export NODE_NAME=${SERVER_NAME}
@@ -22,15 +21,15 @@ export JBOSS_USER={{ USER_NAME }}
 ##### Bind Address #####
 export BIND_ADDR={{ ansible_host }}
 
-export MULTICAST_ADDR=231.0.6.1
-export MULTICAST_PORT=55200
-export JMS_MULTICAST_ADDR=232.0.6.1
-export MODCLUSTER_MULTICAST_ADDR=224.0.6.105
+export MULTICAST_ADDR={{ MULTICAST_ADDR }}
+export MULTICAST_PORT={{ MULTICAST_PORT }}
+export JMS_MULTICAST_ADDR={{ JMS_MULTICAST_ADDR }}
+export MODCLUSTER_MULTICAST_ADDR={{ MODCLUSTER_MULTICAST_ADDR }}
 
-export MGMT_ADDR=${BIND_ADDR}
+export MGMT_ADDR={{ ansible_host }}
 
 export CONTROLLER_IP=${MGMT_ADDR}
-let CONTROLLER_PORT=9999+${PORT_OFFSET}
+let CONTROLLER_PORT=9990+${PORT_OFFSET}
 export CONTROLLER_PORT
 
 let CONSOLE_PORT=9990+${PORT_OFFSET}
@@ -63,8 +62,8 @@ export JAVA_OPTS="${JAVA_OPTS} -Xloggc:${JBOSS_LOG_DIR}/gclog/${SERVER_NAME}.gc.
 #export JAVA_OPTS="${JAVA_OPTS} -XX:NumberOfGCLogFiles=10" 
 #export JAVA_OPTS="${JAVA_OPTS} -XX:GCLogFileSize=3M" 
 
-export JAVA_OPTS="${JAVA_OPTS} -XX:+UseParallelGC"
-export JAVA_OPTS="${JAVA_OPTS} -XX:+UseParallelOldGC"
+#export JAVA_OPTS="${JAVA_OPTS} -XX:+UseParallelGC"
+#export JAVA_OPTS="${JAVA_OPTS} -XX:+UseParallelOldGC"
 
 #export JAVA_OPTS="${JAVA_OPTS} -XX:+UseConcMarkSweepGC"
 #export JAVA_OPTS="${JAVA_OPTS} -XX:+UseG1GC"

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+BASEDIR=$(dirname "$0")
+. ${BASEDIR}/env.sh
+
+unset JAVA_OPTS 
+
+${JBOSS_HOME}/bin/jboss-cli.sh  --controller=${CONTROLLER_IP}:${CONTROLLER_PORT} --connect <<EOF
+batch
+
+{% if 'jboss-eap-6.' in selected_was_name %}  
+## jboss EAP 6.x
+{% if '-ha.xml' in item.configuration %}  
+## standalone-ha.xml
+/subsystem=modcluster:remove()
+{% else %} 
+## standalone.xml
+/subsystem=web/connector=ajp:add(enabled=true,protocol=AJP/1.3,scheme=http,socket-binding=ajp) 
+{% endif %}
+
+/subsystem=logging/logger=org.apache.catalina.core.AprLifecycleListener:add(category=org.apache.catalina.core.AprLifecycleListener,level=DEBUG)
+/subsystem=threads/thread-factory=ajp-thread-factory:add(thread-name-pattern="AJP-THREAD-%t", priority="9", group-name="ajp-uq-thread-pool")
+/subsystem=threads/unbounded-queue-thread-pool=ajp-uq-thread-pool:add(thread-factory="ajp-thread-factory", keepalive-time={time=60, unit="seconds"}, max-threads=300)
+/subsystem=web/connector=ajp:write-attribute(name=executor, value="ajp-uq-thread-pool")
+/subsystem=web/connector=ajp:write-attribute(name=max-connections,value=2000)
+/subsystem=web/connector=http:write-attribute(name=max-connections,value=2000) 
+/subsystem=web/configuration=jsp-configuration:write-attribute(name=development,value=false)
+/subsystem=web/configuration=jsp-configuration:write-attribute(name=x-powered-by,value=false)
+/subsystem=web/configuration=jsp-configuration:write-attribute(name=trim-spaces,value=true)
+/subsystem=web/configuration=jsp-configuration:write-attribute(name=mapped-file,value=true)
+/subsystem=web/configuration=jsp-configuration:write-attribute(name=smap,value=true)
+/subsystem=web:write-attribute(name=instance-id,value="\$\{jboss.node.name\}")
+/subsystem=web:write-attribute(name=native,value=true)
+/subsystem=web/virtual-server=default-host:write-attribute(name=enable-welcome-root,value=false)
+/subsystem=logging/logger=org.jboss.as.controller.management-deprecated:add(category=org.jboss.as.controller.management-deprecated,level=OFF)
+/subsystem=transactions:write-attribute(name=node-identifier,value="\$\{jboss.node.name\}") 
+/subsystem=datasources/data-source=ExampleDS:remove()
+/subsystem=datasources/jdbc-driver=h2:remove()
+{% endif %}
+
+{% if 'jboss-eap-7.' in selected_was_name %} 
+
+{% if '-ha.xml' in item.configuration %}  
+## jboss EAP 7.x
+## standaloen-ha.xml
+## dist session replication patch
+/subsystem=infinispan/cache-container=web/distributed-cache=dist/component=locking:remove
+/subsystem=infinispan/cache-container=web/distributed-cache=dist/component=transaction:remove 
+## remove modcluster
+/subsystem=modcluster:remove()
+/extension=org.jboss.as.modcluster:remove()
+/socket-binding-group=standard-sockets/socket-binding=modcluster:remove()
+{% else %} 
+## standaloen.xml
+## add ajp-listner
+/subsystem=undertow/server=default-server/ajp-listener=default:add(socket-binding=ajp, scheme=http, enabled=true) 
+{% endif %}
+
+## set jvmRoute for sticky 
+/subsystem=undertow:write-attribute(name=instance-id,value="\$\{jboss.node.name\}")
+/subsystem=transactions:write-attribute(name=node-identifier,value="\$\{jboss.node.name\}")
+
+## set task-max-thread(default core * 16)
+/subsystem=io/worker=default/:write-attribute(name=task-max-threads,value=500)
+/subsystem=io/worker=default/:write-attribute(name=task-keepalive,value=60)
+
+## remove default datasource
+/subsystem=datasources/data-source=ExampleDS:remove()
+/subsystem=ee/service=default-bindings:undefine-attribute(name=datasource)
+
+## set the use-deployment-logging-config
+/subsystem=logging:write-attribute(name=use-deployment-logging-config,value=false)
+## disable console log
+/subsystem=logging/root-logger=ROOT:remove-handler(name=CONSOLE)
+
+{% endif %}
+
+run-batch
+exit
+EOF
